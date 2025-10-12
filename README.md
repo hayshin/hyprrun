@@ -1,12 +1,15 @@
-# raise
+Fork of [raise](https://github.com/svelterust/raise) with little change: classes are found using lower().contains() instead of exact match.
+Name changed to be not confused when installed.
 
-Run or raise implemented for Hyprland. It will raise window if it exists,
+# Hyprrun
+
+Run or raise / Jumpapp implemented for Hyprland. It will raise window if it exists,
 or cycle to next window if current window matches class to focus. Otherwise
 it will launch new window.
 
 ```
-$ raise
-Usage: raise -c <class> -e <launch>
+$ hyprrun
+Usage: hyprrun -c <class> -e <launch>
 
 Raise window if it exists, otherwise launch new window.
 
@@ -16,23 +19,19 @@ Options:
   --help            display usage information
 ```
 
-## Install `raise`
+## Install `hyprrun`
 
-There are multiple ways to install this:
+Add `github:svelterust/raise` as a flake to your NixOS configuration
 
-1. Go to [releases](https://github.com/svelterust/raise/releases)
-2. `cargo install --git https://github.com/svelterust/raise`
-3. Add `github:svelterust/raise` as a flake to your NixOS configuration
-
-For NixOS, add raise to your flake inputs:
+For NixOS, add hyprrun to your flake inputs:
 
 ```nix
 inputs = {
-  raise.url = "github:svelterust/raise";
+  hyprrun.url = "github:hayshin/hyprrun";
 };
 ```
 
-Then add it to your system, for instance: `environment.systemPackages = [raise.defaultPackage.x86_64-linux];`
+Then add it to your system, for instance: `environment.systemPackages = [hyprrun.defaultPackage.x86_64-linux];`
 
 ## Example configuration
 
