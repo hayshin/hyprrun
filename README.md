@@ -21,7 +21,7 @@ Options:
 
 ## Install `hyprrun`
 
-Add `github:svelterust/raise` as a flake to your NixOS configuration
+Add `github:hayshin/hyprrun` as a flake to your NixOS configuration
 
 For NixOS, add hyprrun to your flake inputs:
 
