@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use argh::FromArgs;
 use miniserde::{json, Deserialize};
 use std::process::{Child, Command};
@@ -69,13 +69,16 @@ fn main() -> Result<()> {
             // Filter matching clients
             let candidates = clients
                 .iter()
-                .filter(|client| client.class == args.class)
+                .filter(|client| client.class.to_lowercase().contains(&args.class))
                 .collect::<Vec<_>>();
-            
+
             // Are we currently focusing a window of this class?
             if let Ok(Client { address, .. }) = get_current_matching_window(&args.class) {
                 // Focus next window based on first
-                if let Some(index) = candidates.iter().position(|client| client.address == address) {
+                if let Some(index) = candidates
+                    .iter()
+                    .position(|client| client.address == address)
+                {
                     if let Some(next_client) = candidates.iter().cycle().skip(index + 1).next() {
                         focus_window(&next_client.address)?;
                     }
