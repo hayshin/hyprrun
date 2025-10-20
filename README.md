@@ -1,5 +1,4 @@
-Fork of [raise](https://github.com/svelterust/raise) with little change: classes are found using lower().contains() instead of exact match.
-Name changed to be not confused when installed.
+Fork of [raise](https://github.com/neg-serg/raise) with little change: classes are found using lower().contains() instead of exact match by default. Also add shorthand for title.
 
 # Hyprrun
 
@@ -9,14 +8,47 @@ it will launch new window.
 
 ```
 $ hyprrun
-Usage: hyprrun -c <class> -e <launch>
+Usage: hyprrun -e <launch> -m <field[:method]=pattern>
 
 Raise window if it exists, otherwise launch new window.
 
 Options:
-  -c, --class       class to focus
+  -m, --match       additional matcher in the form field[:method]=pattern
   -e, --launch      command to launch
+  -c, --class       class to focus (shorthand for `--match class:contains=...`)
+  -c, --title       title to focus (shorthand for `--match title:contains=...`)
   --help            display usage information
+```
+
+### Matching
+
+The `--match` flag allows choosing how a window should be selected. Each
+matcher uses the format `field[:method]=pattern` and multiple matchers can be
+combined; they all have to match for a window to qualify.
+
+Supported fields:
+- `class` — current window class reported by Hyprland
+- `initial-class` — class when the window was first created
+- `title` — current window title
+- `initial-title` — original title assigned on window creation
+- `tag` — window tag assigned via dynamic tags
+- `xdgtag` — XDG surface tag (`xdgTag` in `hyprctl clients`)
+
+Aliases: you can also use the short forms `c`, `initialClass`, `initialTitle`, and `xdg-tag`.
+
+Supported methods (default is `contains`):
+- `equals` / `eq`
+- `contains` / `substr`
+- `prefix` / `starts-with`
+- `suffix` / `ends-with`
+- `regex` / `re`
+
+Examples:
+
+```
+raise --launch firefox --match class=firefox
+raise --launch alacritty --match title:contains=notes
+raise --launch slack --match class=Slack --match title:regex="(?i)daily"
 ```
 
 ## Install `hyprrun`
@@ -31,7 +63,7 @@ inputs = {
 };
 ```
 
-Then add it to your system, for instance: `environment.systemPackages = [hyprrun.defaultPackage.x86_64-linux];`
+Then add it to your system, for instance: `home.packages = [inputs.hyprrun.defaultPackage.x86_64-linux];`
 
 ## Example configuration
 
@@ -46,6 +78,6 @@ bind = SUPER, F, exec, raise --class "emacs" --launch "emacsclient --create-fram
 bind = SUPER_SHIFT, F, exec, emacsclient --create-frame
 ```
 
-## How to find class?
+## How to find window information and fields?
 
-Run `hyprctl clients` while window is open, and look for `class: <class>`.
+Run `hyprctl clients` while window is open, and look for `field: <field>`.
