@@ -69,7 +69,7 @@ enum Matcher {
 
 impl Matcher {
     fn from_tokens(method: Option<&str>, pattern: &str) -> std::result::Result<Self, String> {
-        let method = method.unwrap_or("equals");
+        let method = method.unwrap_or("contains");
         match method {
             "equals" | "eq" => Ok(Self::Equals(pattern.to_owned())),
             "contains" | "substr" => Ok(Self::Contains(pattern.to_owned())),
@@ -162,7 +162,7 @@ impl Args {
         matchers.extend(self.matches.clone());
 
         if matchers.is_empty() {
-            bail!("Provide at least one matcher via --class or --match");
+            bail!("Provide at least one matcher via --match");
         }
 
         Ok(matchers)
