@@ -50,8 +50,10 @@ impl State {
 
     pub fn save(&self) -> Result<()> {
         let path = Self::get_path()?;
+        let tmp_path = path.with_extension("json.tmp");
         let content = json::to_string(self);
-        fs::write(path, content).context("Failed to write state file")
+        fs::write(&tmp_path, content).context("Failed to write temporary state file")?;
+        fs::rename(tmp_path, path).context("Failed to finalize state file save")
     }
 
     /// Removes an address from the tracked windows for a given command.
@@ -61,6 +63,20 @@ impl State {
             if addresses.is_empty() {
                 self.windows.remove(command);
             }
+        }
+    }
+
+    /// Removes an address from ALL commands.
+    pub fn remove_window_by_address(&mut self, address: &str) {
+        let mut commands_to_remove = Vec::new();
+        for (cmd, addrs) in self.windows.iter_mut() {
+            addrs.retain(|a| a != address);
+            if addrs.is_empty() {
+                commands_to_remove.push(cmd.clone());
+            }
+        }
+        for cmd in commands_to_remove {
+            self.windows.remove(&cmd);
         }
     }
 

@@ -15,6 +15,10 @@ pub struct Args {
     #[argh(switch, short = 'l')]
     pub load: bool,
 
+    /// run as a listener service to keep state up to date
+    #[argh(switch)]
+    pub listen: bool,
+
     /// command to run (and arguments)
     #[argh(positional, greedy)]
     pub command: Vec<String>,

@@ -172,3 +172,18 @@ pub fn get_client_addresses() -> Result<std::collections::HashSet<String>> {
     let clients = get_clients()?;
     Ok(clients.into_iter().map(|c| c.address).collect())
 }
+
+pub fn event_socket_path() -> Result<std::path::PathBuf> {
+    let runtime_dir = std::env::var("XDG_RUNTIME_DIR").context("XDG_RUNTIME_DIR not set")?;
+    let signature = std::env::var("HYPRLAND_INSTANCE_SIGNATURE")
+        .context("HYPRLAND_INSTANCE_SIGNATURE not set (not running under Hyprland?)")?;
+    Ok(std::path::PathBuf::from(runtime_dir)
+        .join("hypr")
+        .join(signature)
+        .join(".socket2.sock"))
+}
+
+pub fn connect_event_socket() -> Result<std::os::unix::net::UnixStream> {
+    let path = event_socket_path()?;
+    std::os::unix::net::UnixStream::connect(path).context("Failed to connect to Hyprland event socket")
+}
