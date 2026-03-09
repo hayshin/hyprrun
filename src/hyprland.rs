@@ -17,11 +17,52 @@ pub struct Client {
     pub xdg_tag: Option<String>,
 }
 
+pub fn resolve_command(command: &str) -> String {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+    
+    // Attempt to resolve via the shell's interactive mode (to load aliases)
+    // We try to find the actual command path. If it's an alias, most shells
+    // will show the expansion or we can use 'type' / 'which'.
+    // Nushell, Bash, and Zsh all support 'type -p' or 'which' to some extent.
+    // For simplicity and broadest compatibility, we'll try to use the shell to 
+    // echo the command name after it's been processed by the shell's alias system.
+    
+    let resolver_cmd = if shell.ends_with("nu") {
+        // Nushell specific: which <cmd> | get path | str join
+        format!("which {} | get path.0", command)
+    } else {
+        // Bash/Zsh specific: type -p <cmd> or fallback to which
+        format!("type -p {} 2>/dev/null || which {}", command, command)
+    };
+
+    let output = Command::new(&shell)
+        .arg("-i") // interactive to load aliases
+        .arg("-c")
+        .arg(resolver_cmd)
+        .output();
+
+    if let Ok(out) = output {
+        if out.status.success() {
+            let resolved = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !resolved.is_empty() {
+                return resolved;
+            }
+        }
+    }
+
+    command.to_string()
+}
+
 pub fn launch_command(command: &str) -> std::io::Result<Child> {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+    
+    // Wrap in shell execution to handle aliases/shell features
+    let shell_command = format!("{} -ic '{}'", shell, command);
+    
     Command::new("hyprctl")
         .arg("dispatch")
         .arg("exec")
-        .arg(command)
+        .arg(shell_command)
         .spawn()
 }
 

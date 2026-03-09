@@ -14,7 +14,17 @@ fn main() -> Result<()> {
     if args.command.is_empty() {
         anyhow::bail!("No command provided");
     }
-    let command_key = args.command.join(" ");
+    let command_input = args.command.join(" ");
+    
+    // Resolve aliases to ensure 'ff' and 'firefox' are treated as the same command.
+    // We'll use the resolved path/name for state tracking, but keep original for launch.
+    let command_key = hyprland::resolve_command(&args.command[0]);
+    // Re-attach arguments if any
+    let command_key = if args.command.len() > 1 {
+        format!("{} {}", command_key, args.command[1..].join(" "))
+    } else {
+        command_key
+    };
 
     // 2. Load and Clean State
     let mut state = State::load().unwrap_or_else(|_| State::default());
@@ -40,8 +50,8 @@ fn main() -> Result<()> {
     // Snapshot active windows BEFORE launch
     let clients_before = hyprland::get_client_addresses().unwrap_or_default();
 
-    // Launch the command
-    hyprland::launch_command(&command_key)?;
+    // Launch the command (using original input to ensure shell features/aliases work)
+    hyprland::launch_command(&command_input)?;
 
     // Poll for new window
     let start = Instant::now();
