@@ -8,7 +8,7 @@ use args::Args;
 use state::State;
 use std::thread;
 use std::time::{Duration, Instant};
-use log::{info, warn, error};
+use log::{info, warn};
 
 fn main() -> Result<()> {
     // 0. Init Logger

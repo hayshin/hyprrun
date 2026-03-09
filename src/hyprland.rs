@@ -35,11 +35,14 @@ pub fn resolve_command(command: &str) -> String {
         format!("type -p {} 2>/dev/null || which {}", command, command)
     };
 
-    let output = Command::new(&shell)
-        .arg("-i") // interactive to load aliases
-        .arg("-c")
-        .arg(resolver_cmd)
-        .output();
+    // Nushell loads config.nu (and thus aliases) even without -i.
+    // For bash/zsh, -i is required to source .bashrc/.zshrc where aliases live.
+    // Running -i with no TTY causes nushell to fail, producing empty output.
+    let mut shell_cmd = Command::new(&shell);
+    if !shell.ends_with("nu") {
+        shell_cmd.arg("-i");
+    }
+    let output = shell_cmd.arg("-c").arg(resolver_cmd).output();
 
     if let Ok(out) = output {
         if out.status.success() {
@@ -56,9 +59,10 @@ pub fn resolve_command(command: &str) -> String {
 pub fn launch_command(command: &str) -> std::io::Result<Child> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
     
-    // Wrap in shell execution to handle aliases/shell features
-    let shell_command = format!("{} -ic '{}'", shell, command);
-    
+    // Nushell loads aliases without -i; bash/zsh require -i to source rc files.
+    let shell_flags = if shell.ends_with("nu") { "-c" } else { "-ic" };
+    let shell_command = format!("{} {} '{}'", shell, shell_flags, command);
+
     Command::new("hyprctl")
         .arg("dispatch")
         .arg("exec")
