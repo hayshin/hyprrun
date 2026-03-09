@@ -9,6 +9,23 @@ pub struct State {
     pub windows: HashMap<String, Vec<String>>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WindowProperties {
+    pub workspace_id: i32,
+    pub floating: bool,
+    pub monitor: i32,
+    pub pinned: bool,
+    pub fullscreen_mode: i32,
+    pub at: [i32; 2],
+    pub size: [i32; 2],
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct Session {
+    /// Mapping of command to properties of windows it owned.
+    pub entries: Vec<(String, WindowProperties)>,
+}
+
 impl State {
     fn get_path() -> Result<PathBuf> {
         let runtime_dir = std::env::var("XDG_RUNTIME_DIR").context("XDG_RUNTIME_DIR not set")?;
@@ -73,5 +90,40 @@ impl State {
 
         // Default to first window
         Some(addresses[0].clone())
+    }
+}
+
+impl Session {
+    fn get_path() -> Result<PathBuf> {
+        let config_dir = std::env::var("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|_| {
+                std::env::var("HOME").map(|h| PathBuf::from(h).join(".config"))
+            })
+            .context("Could not determine config directory")?;
+
+        let dir = config_dir.join("hyprrun");
+        if !dir.exists() {
+            fs::create_dir_all(&dir).context("Failed to create config directory")?;
+        }
+        Ok(dir.join("session.json"))
+    }
+
+    pub fn load() -> Result<Self> {
+        let path = Self::get_path()?;
+        if !path.exists() {
+            return Ok(<Session as Default>::default());
+        }
+        let content = fs::read_to_string(&path).context("Failed to read session file")?;
+        if content.trim().is_empty() {
+            return Ok(<Session as Default>::default());
+        }
+        json::from_str(&content).context("Failed to parse session file")
+    }
+
+    pub fn save(&self) -> Result<()> {
+        let path = Self::get_path()?;
+        let content = json::to_string(self);
+        fs::write(path, content).context("Failed to write session file")
     }
 }

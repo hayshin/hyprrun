@@ -7,6 +7,14 @@ pub struct Args {
     #[argh(switch, short = 'n')]
     pub new: bool,
 
+    /// save current session
+    #[argh(switch, short = 's')]
+    pub save: bool,
+
+    /// load saved session
+    #[argh(switch, short = 'l')]
+    pub load: bool,
+
     /// command to run (and arguments)
     #[argh(positional, greedy)]
     pub command: Vec<String>,
