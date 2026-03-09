@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use miniserde::{json, Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::{self};
 use std::path::PathBuf;
 
@@ -37,13 +37,14 @@ impl State {
         fs::write(path, content).context("Failed to write state file")
     }
 
-    /// Removes addresses that are no longer present in the provided set of active addresses.
-    pub fn clean(&mut self, active_addresses: &HashSet<String>) {
-        for addresses in self.windows.values_mut() {
-            addresses.retain(|addr| active_addresses.contains(addr));
+    /// Removes an address from the tracked windows for a given command.
+    pub fn remove_window(&mut self, command: &str, address: &str) {
+        if let Some(addresses) = self.windows.get_mut(command) {
+            addresses.retain(|a| a != address);
+            if addresses.is_empty() {
+                self.windows.remove(command);
+            }
         }
-        // Remove commands that have no open windows left
-        self.windows.retain(|_, addresses| !addresses.is_empty());
     }
 
     pub fn add_window(&mut self, command: &str, address: String) {

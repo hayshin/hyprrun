@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use miniserde::{json, Deserialize};
-use std::process::{Child, Command};
+use std::process::Command;
 
 #[derive(Deserialize, Debug, Clone)]
 #[allow(dead_code)]
@@ -17,20 +17,34 @@ pub struct Client {
     pub xdg_tag: Option<String>,
 }
 
-pub fn launch_command(command: &str) -> std::io::Result<Child> {
-    Command::new("hyprctl")
+pub fn launch_command(command: &str) -> Result<()> {
+    let output = Command::new("hyprctl")
         .arg("dispatch")
         .arg("exec")
         .arg(command)
-        .spawn()
+        .output()
+        .context("Failed to execute hyprctl exec")?;
+
+    if !output.status.success() {
+        anyhow::bail!("hyprctl exec failed");
+    }
+    Ok(())
 }
 
-pub fn focus_window(address: &str) -> std::io::Result<Child> {
-    Command::new("hyprctl")
+pub fn focus_window(address: &str) -> Result<bool> {
+    let output = Command::new("hyprctl")
         .arg("dispatch")
         .arg("focuswindow")
         .arg(format!("address:{address}"))
-        .spawn()
+        .output()
+        .context("Failed to execute hyprctl focuswindow")?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if stdout.contains("No such window found") {
+        return Ok(false);
+    }
+
+    Ok(output.status.success())
 }
 
 pub fn get_active_window() -> Result<Client> {

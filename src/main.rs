@@ -23,23 +23,23 @@ fn main() -> Result<()> {
 
     info!("Command: '{}'", command_input);
 
-    // 2. Load and Clean State
+    // 2. Load State
     let mut state = State::load().unwrap_or_else(|_| State::default());
-    let active_addresses = hyprland::get_client_addresses().unwrap_or_default();
-    
-    // Clean dead windows from state
-    state.clean(&active_addresses);
-    // Best effort save cleaned state
-    let _ = state.save();
 
     // 3. Logic: Switch or Launch
-    // If not forced new, and we have tracked windows for this command...
     if !args.new {
-        let active_window = hyprland::get_active_window().ok().map(|c| c.address);
-        if let Some(target_address) = state.get_next_window(&command_input, active_window.as_deref()) {
+        let current_focus = hyprland::get_active_window().ok().map(|c| c.address);
+        while let Some(target_address) = state.get_next_window(&command_input, current_focus.as_deref()) {
             info!("Focusing existing window: {}", target_address);
-            hyprland::focus_window(&target_address)?;
-            return Ok(());
+            if hyprland::focus_window(&target_address)? {
+                return Ok(());
+            } else {
+                warn!("Window {} no longer exists, removing from state", target_address);
+                state.remove_window(&command_input, &target_address);
+                let _ = state.save();
+                // If we removed the current_focus window from state, 
+                // we'll still find the next one in the next iteration.
+            }
         }
     }
 
