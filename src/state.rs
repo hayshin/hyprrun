@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
-use std::fs::{self, File};
+use std::fs::{self};
 use std::path::PathBuf;
 use miniserde::{json, Serialize, Deserialize};
 
@@ -19,7 +19,7 @@ impl State {
     pub fn load() -> Result<Self> {
         let path = Self::get_path()?;
         if !path.exists() {
-            return Ok(Self::default());
+            return Ok(<State as Default>::default());
         }
 
         let content = fs::read_to_string(&path)
@@ -27,7 +27,7 @@ impl State {
         
         // Handle empty file case
         if content.trim().is_empty() {
-             return Ok(Self::default());
+             return Ok(<State as Default>::default());
         }
 
         json::from_str(&content).context("Failed to parse state file")
@@ -49,10 +49,13 @@ impl State {
     }
 
     pub fn add_window(&mut self, command: &str, address: String) {
-        self.windows
+        let windows = self.windows
             .entry(command.to_string())
-            .or_insert_with(Vec::new)
-            .push(address);
+            .or_insert_with(Vec::new);
+        
+        if !windows.contains(&address) {
+            windows.push(address);
+        }
     }
 
     pub fn get_next_window(&self, command: &str, current_focus: Option<&str>) -> Option<String> {

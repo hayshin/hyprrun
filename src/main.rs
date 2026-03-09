@@ -41,39 +41,38 @@ fn main() -> Result<()> {
     let clients_before = hyprland::get_client_addresses().unwrap_or_default();
 
     // Launch the command
-    // We pass the command string directly to hyprctl exec
-    // Note: If the user passed arguments like `kitty -e htop`, 
-    // `command_key` is "kitty -e htop".
-    // hyprctl exec expects the command string.
     hyprland::launch_command(&command_key)?;
 
     // Poll for new window
     let start = Instant::now();
     let timeout = Duration::from_secs(5); // 5 second timeout
-    let poll_interval = Duration::from_millis(200);
+    let poll_interval = Duration::from_millis(100);
 
-    println!("Waiting for window to appear...");
     while start.elapsed() < timeout {
         thread::sleep(poll_interval);
 
         if let Ok(clients_after) = hyprland::get_client_addresses() {
             // Find address in 'after' that was not in 'before'
-            let new_windows: Vec<&String> = clients_after.difference(&clients_before).collect();
+            let new_windows: Vec<String> = clients_after
+                .difference(&clients_before)
+                .cloned()
+                .collect();
 
             if !new_windows.is_empty() {
-                // Heuristic: Pick the first new window found.
-                // In a race condition (user launches 2 apps), this might be wrong,
-                // but acceptable for this scope.
-                let new_address = new_windows[0].clone();
+                // Wait a bit longer to see if more windows pop up
+                thread::sleep(Duration::from_millis(400));
                 
-                // Track it
-                state.add_window(&command_key, new_address.clone());
+                // Final snapshot
+                let final_clients = hyprland::get_client_addresses().unwrap_or(clients_after);
+                let all_new: Vec<String> = final_clients
+                    .difference(&clients_before)
+                    .cloned()
+                    .collect();
+
+                for addr in all_new {
+                    state.add_window(&command_key, addr);
+                }
                 state.save().context("Failed to save state")?;
-                
-                // Optional: Focus it (usually auto-focused by Hyprland, but ensure it)
-                // hyprland::focus_window(&new_address)?; 
-                // Commented out: Hyprland usually focuses new windows. 
-                // If we force focus, we might steal focus if the user quickly alt-tabbed away.
                 
                 return Ok(());
             }
@@ -81,7 +80,6 @@ fn main() -> Result<()> {
     }
 
     // If we timed out, we just assume the app launched but didn't create a window 
-    // (active in background?) or took too long. We don't track it.
     eprintln!("Command launched, but no new window detected within timeout.");
     
     Ok(())

@@ -3,6 +3,7 @@ use miniserde::{json, Deserialize};
 use std::process::{Child, Command};
 
 #[derive(Deserialize, Debug, Clone)]
+#[allow(dead_code)]
 pub struct Client {
     pub class: String,
     pub address: String,
@@ -18,7 +19,7 @@ pub struct Client {
 
 pub fn launch_command(command: &str) -> std::io::Result<Child> {
     Command::new("hyprctl")
-        .arg("keyword")
+        .arg("dispatch")
         .arg("exec")
         .arg(command)
         .spawn()
@@ -39,7 +40,13 @@ pub fn get_active_window() -> Result<Client> {
         .output()?;
     let stdout = String::from_utf8(output.stdout)
         .context("Reading `hyprctl currentwindow -j` to string failed")?;
-    let client = json::from_str::<Client>(&stdout)?;
+    
+    if stdout.trim() == "{}" || stdout.trim().is_empty() {
+        anyhow::bail!("No active window");
+    }
+
+    let client = json::from_str::<Client>(&stdout)
+        .context("Failed to parse `hyprctl activewindow -j`")?;
     Ok(client)
 }
 
