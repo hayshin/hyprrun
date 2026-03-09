@@ -1,14 +1,19 @@
 mod args;
 mod hyprland;
 mod state;
+mod logger;
 
 use anyhow::{Result, Context};
 use args::Args;
 use state::State;
 use std::thread;
 use std::time::{Duration, Instant};
+use log::{info, warn, error};
 
 fn main() -> Result<()> {
+    // 0. Init Logger
+    let _ = logger::init();
+
     // 1. Parse Args
     let args: Args = argh::from_env();
     if args.command.is_empty() {
@@ -18,13 +23,15 @@ fn main() -> Result<()> {
     
     // Resolve aliases to ensure 'ff' and 'firefox' are treated as the same command.
     // We'll use the resolved path/name for state tracking, but keep original for launch.
-    let command_key = hyprland::resolve_command(&args.command[0]);
+    let command_key_base = hyprland::resolve_command(&args.command[0]);
     // Re-attach arguments if any
     let command_key = if args.command.len() > 1 {
-        format!("{} {}", command_key, args.command[1..].join(" "))
+        format!("{} {}", command_key_base, args.command[1..].join(" "))
     } else {
-        command_key
+        command_key_base
     };
+
+    info!("Command: '{}' (Key: '{}')", command_input, command_key);
 
     // 2. Load and Clean State
     let mut state = State::load().unwrap_or_else(|_| State::default());
@@ -40,7 +47,7 @@ fn main() -> Result<()> {
     if !args.new {
         let active_window = hyprland::get_active_window().ok().map(|c| c.address);
         if let Some(target_address) = state.get_next_window(&command_key, active_window.as_deref()) {
-            // ... focus the next one.
+            info!("Focusing existing window: {}", target_address);
             hyprland::focus_window(&target_address)?;
             return Ok(());
         }
@@ -51,6 +58,7 @@ fn main() -> Result<()> {
     let clients_before = hyprland::get_client_addresses().unwrap_or_default();
 
     // Launch the command (using original input to ensure shell features/aliases work)
+    info!("Launching command: {}", command_input);
     hyprland::launch_command(&command_input)?;
 
     // Poll for new window
@@ -79,7 +87,9 @@ fn main() -> Result<()> {
                     .cloned()
                     .collect();
 
+                info!("Detected {} new window(s)", all_new.len());
                 for addr in all_new {
+                    info!("Linking window: {}", addr);
                     state.add_window(&command_key, addr);
                 }
                 state.save().context("Failed to save state")?;
@@ -90,7 +100,7 @@ fn main() -> Result<()> {
     }
 
     // If we timed out, we just assume the app launched but didn't create a window 
-    eprintln!("Command launched, but no new window detected within timeout.");
+    warn!("Command launched, but no new window detected within timeout.");
     
     Ok(())
 }

@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
+use miniserde::{json, Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self};
 use std::path::PathBuf;
-use miniserde::{json, Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct State {
@@ -11,8 +11,7 @@ pub struct State {
 
 impl State {
     fn get_path() -> Result<PathBuf> {
-        let runtime_dir = std::env::var("XDG_RUNTIME_DIR")
-            .context("XDG_RUNTIME_DIR not set")?;
+        let runtime_dir = std::env::var("XDG_RUNTIME_DIR").context("XDG_RUNTIME_DIR not set")?;
         Ok(PathBuf::from(runtime_dir).join("hyprrun.json"))
     }
 
@@ -22,12 +21,11 @@ impl State {
             return Ok(<State as Default>::default());
         }
 
-        let content = fs::read_to_string(&path)
-            .context("Failed to read state file")?;
-        
+        let content = fs::read_to_string(&path).context("Failed to read state file")?;
+
         // Handle empty file case
         if content.trim().is_empty() {
-             return Ok(<State as Default>::default());
+            return Ok(<State as Default>::default());
         }
 
         json::from_str(&content).context("Failed to parse state file")
@@ -49,10 +47,11 @@ impl State {
     }
 
     pub fn add_window(&mut self, command: &str, address: String) {
-        let windows = self.windows
+        let windows = self
+            .windows
             .entry(command.to_string())
             .or_insert_with(Vec::new);
-        
+
         if !windows.contains(&address) {
             windows.push(address);
         }
@@ -70,7 +69,7 @@ impl State {
                 return Some(addresses[(pos + 1) % addresses.len()].clone());
             }
         }
-        
+
         // Default to first window
         Some(addresses[0].clone())
     }
