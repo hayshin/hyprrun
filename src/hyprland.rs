@@ -17,56 +17,11 @@ pub struct Client {
     pub xdg_tag: Option<String>,
 }
 
-pub fn resolve_command(command: &str) -> String {
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-    
-    // Attempt to resolve via the shell's interactive mode (to load aliases)
-    // We try to find the actual command path. If it's an alias, most shells
-    // will show the expansion or we can use 'type' / 'which'.
-    // Nushell, Bash, and Zsh all support 'type -p' or 'which' to some extent.
-    // For simplicity and broadest compatibility, we'll try to use the shell to 
-    // echo the command name after it's been processed by the shell's alias system.
-    
-    let resolver_cmd = if shell.ends_with("nu") {
-        // Nushell specific: which <cmd> | get path | str join
-        format!("which {} | get path.0", command)
-    } else {
-        // Bash/Zsh specific: type -p <cmd> or fallback to which
-        format!("type -p {} 2>/dev/null || which {}", command, command)
-    };
-
-    // Nushell loads config.nu (and thus aliases) even without -i.
-    // For bash/zsh, -i is required to source .bashrc/.zshrc where aliases live.
-    // Running -i with no TTY causes nushell to fail, producing empty output.
-    let mut shell_cmd = Command::new(&shell);
-    if !shell.ends_with("nu") {
-        shell_cmd.arg("-i");
-    }
-    let output = shell_cmd.arg("-c").arg(resolver_cmd).output();
-
-    if let Ok(out) = output {
-        if out.status.success() {
-            let resolved = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !resolved.is_empty() {
-                return resolved;
-            }
-        }
-    }
-
-    command.to_string()
-}
-
 pub fn launch_command(command: &str) -> std::io::Result<Child> {
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-    
-    // Nushell loads aliases without -i; bash/zsh require -i to source rc files.
-    let shell_flags = if shell.ends_with("nu") { "-c" } else { "-ic" };
-    let shell_command = format!("{} {} '{}'", shell, shell_flags, command);
-
     Command::new("hyprctl")
         .arg("dispatch")
         .arg("exec")
-        .arg(shell_command)
+        .arg(command)
         .spawn()
 }
 
@@ -85,7 +40,7 @@ pub fn get_active_window() -> Result<Client> {
         .output()?;
     let stdout = String::from_utf8(output.stdout)
         .context("Reading `hyprctl currentwindow -j` to string failed")?;
-    
+
     if stdout.trim() == "{}" || stdout.trim().is_empty() {
         anyhow::bail!("No active window");
     }
@@ -104,12 +59,6 @@ pub fn get_clients() -> Result<Vec<Client>> {
             .context("Failed to parse `hyprctl clients -j`")?;
         Ok(clients)
     } else {
-        // Fallback or error? The original code had a match block handling failure by just launching.
-        // Here we should probably return error and let caller decide.
-        // But looking at original main:
-        // match json { Ok ... => { logic }, _ => { launch_command } }
-        // So if get_clients fails, we treat it as "no clients found" or similar and proceed to launch.
-        // I will return Result.
         anyhow::bail!("hyprctl clients -j failed")
     }
 }

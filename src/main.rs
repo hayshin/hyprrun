@@ -20,18 +20,8 @@ fn main() -> Result<()> {
         anyhow::bail!("No command provided");
     }
     let command_input = args.command.join(" ");
-    
-    // Resolve aliases to ensure 'ff' and 'firefox' are treated as the same command.
-    // We'll use the resolved path/name for state tracking, but keep original for launch.
-    let command_key_base = hyprland::resolve_command(&args.command[0]);
-    // Re-attach arguments if any
-    let command_key = if args.command.len() > 1 {
-        format!("{} {}", command_key_base, args.command[1..].join(" "))
-    } else {
-        command_key_base
-    };
 
-    info!("Command: '{}' (Key: '{}')", command_input, command_key);
+    info!("Command: '{}'", command_input);
 
     // 2. Load and Clean State
     let mut state = State::load().unwrap_or_else(|_| State::default());
@@ -46,7 +36,7 @@ fn main() -> Result<()> {
     // If not forced new, and we have tracked windows for this command...
     if !args.new {
         let active_window = hyprland::get_active_window().ok().map(|c| c.address);
-        if let Some(target_address) = state.get_next_window(&command_key, active_window.as_deref()) {
+        if let Some(target_address) = state.get_next_window(&command_input, active_window.as_deref()) {
             info!("Focusing existing window: {}", target_address);
             hyprland::focus_window(&target_address)?;
             return Ok(());
@@ -57,7 +47,6 @@ fn main() -> Result<()> {
     // Snapshot active windows BEFORE launch
     let clients_before = hyprland::get_client_addresses().unwrap_or_default();
 
-    // Launch the command (using original input to ensure shell features/aliases work)
     info!("Launching command: {}", command_input);
     hyprland::launch_command(&command_input)?;
 
@@ -90,7 +79,7 @@ fn main() -> Result<()> {
                 info!("Detected {} new window(s)", all_new.len());
                 for addr in all_new {
                     info!("Linking window: {}", addr);
-                    state.add_window(&command_key, addr);
+                    state.add_window(&command_input, addr);
                 }
                 state.save().context("Failed to save state")?;
                 
