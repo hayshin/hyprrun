@@ -176,9 +176,10 @@ fn run_listener() -> Result<()> {
             if line.starts_with("closewindow>>") {
                 let addr = line["closewindow>>".len()..].trim();
                 if !addr.is_empty() {
+                    let addr = if addr.starts_with("0x") { addr.to_string() } else { format!("0x{}", addr) };
                     info!("Window closed: {}", addr);
                     if let Ok(mut state) = State::load() {
-                        state.remove_window_by_address(addr);
+                        state.remove_window_by_address(&addr);
                         let _ = state.save();
                     }
                 }
@@ -203,7 +204,9 @@ fn wait_for_new_window(stream: std::os::unix::net::UnixStream, timeout: Duration
                 if line.starts_with("openwindow>>") {
                     let data = &line["openwindow>>".len()..];
                     if let Some(addr) = data.split(',').next() {
-                        detected.push(addr.trim().to_string());
+                        let addr = addr.trim();
+                        let addr = if addr.starts_with("0x") { addr.to_string() } else { format!("0x{}", addr) };
+                        detected.push(addr);
                         
                         // Wait a bit more for potential sibling windows
                         thread::sleep(Duration::from_millis(400));
@@ -217,7 +220,9 @@ fn wait_for_new_window(stream: std::os::unix::net::UnixStream, timeout: Duration
                             if line.starts_with("openwindow>>") {
                                 let data = &line["openwindow>>".len()..];
                                 if let Some(addr) = data.split(',').next() {
-                                    detected.push(addr.trim().to_string());
+                                    let addr = addr.trim();
+                                    let addr = if addr.starts_with("0x") { addr.to_string() } else { format!("0x{}", addr) };
+                                    detected.push(addr);
                                 }
                             }
                         }
